@@ -7,7 +7,7 @@
 const repo = require("../lib/repo");
 
 module.exports = async function handler(req, res) {
-  const slug = Array.isArray(req.query.slug) ? req.query.slug : [];
+  const slug = normalizeSlug(req.query.slug);
   const method = req.method || "GET";
 
   try {
@@ -105,6 +105,16 @@ module.exports = async function handler(req, res) {
     return json(res, 500, { error: err.message || "Error interno del servidor." });
   }
 };
+
+// Vercel entrega el segmento de una ruta catch-all como ARRAY cuando hay más
+// de un tramo (/api/tasks/12 -> ['tasks','12']), pero como STRING simple
+// cuando solo hay uno (/api/data -> 'data', no ['data']). Esto normaliza
+// ambos casos para que el enrutado de más abajo siempre reciba un array.
+function normalizeSlug(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string" && raw.length) return raw.split("/").filter(Boolean);
+  return [];
+}
 
 function json(res, status, body) {
   res.status(status).setHeader("content-type", "application/json; charset=utf-8");
