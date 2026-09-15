@@ -1,13 +1,17 @@
 // Ruta "catch-all" de la API del Gantt e-Tech.
 // Vercel despliega este archivo como una función serverless que recibe
-// cualquier petición a /api/* (req.query.slug trae el resto de la ruta como
-// array de segmentos, p. ej. /api/tasks/12 -> slug = ['tasks', '12']).
+// cualquier petición a /api/*. En vez de fiarnos de que Vercel nos pase la
+// ruta ya trocito a trocito en req.query.slug (en producción no lo estaba
+// haciendo de forma fiable para rutas de un solo tramo, p. ej. /api/data),
+// la sacamos nosotros mismos de la URL real de la petición.
 "use strict";
 
 const repo = require("../lib/repo");
 
 module.exports = async function handler(req, res) {
-  const slug = normalizeSlug(req.query.slug);
+  const parsedUrl = new URL(req.url, "http://internal");
+  const slug = parsedUrl.pathname.replace(/^\/api\/?/, "").split("/").filter(Boolean);
+  const query = Object.fromEntries(parsedUrl.searchParams.entries());
   const method = req.method || "GET";
 
   try {
@@ -19,10 +23,10 @@ module.exports = async function handler(req, res) {
       if (!expected) {
         return json(res, 500, { error: "Falta configurar la variable de entorno SEED_TOKEN en Vercel." });
       }
-      if (req.query.token !== expected) {
+      if (query.token !== expected) {
         return json(res, 403, { error: "Token incorrecto." });
       }
-      const result = await repo.seedIfEmpty({ force: req.query.force === "1" });
+      const result = await repo.seedIfEmpty({ force: query.force === "1" });
       return json(res, 200, result);
     }
 
@@ -105,16 +109,6 @@ module.exports = async function handler(req, res) {
     return json(res, 500, { error: err.message || "Error interno del servidor." });
   }
 };
-
-// Vercel entrega el segmento de una ruta catch-all como ARRAY cuando hay más
-// de un tramo (/api/tasks/12 -> ['tasks','12']), pero como STRING simple
-// cuando solo hay uno (/api/data -> 'data', no ['data']). Esto normaliza
-// ambos casos para que el enrutado de más abajo siempre reciba un array.
-function normalizeSlug(raw) {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === "string" && raw.length) return raw.split("/").filter(Boolean);
-  return [];
-}
 
 function json(res, status, body) {
   res.status(status).setHeader("content-type", "application/json; charset=utf-8");
