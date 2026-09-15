@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gantt e-Tech</title>
+<link id="favicon-link" rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%231D1D1B%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 font-family=%22Arial%22 font-weight=%22900%22 fill=%22%231FED14%22 text-anchor=%22middle%22>G</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:        #1D1D1B;
+    --ink-2:      #242422;
+    --ink-3:      #2E2E2B;
+    --line:       #3A3A36;
+    --steel:      #BABFBB;
+    --steel-dim:  #8C918D;
+    --paper:      #EFEFEF;
+    --volt:       #1FED14;
+    --volt-dim:   #16381A;
+    --danger:     #E4432B;
+    --danger-dim: #3A1E18;
+    --warn:       #F2B32C;
+    --warn-dim:   #2b2a17;
+    --alumni:     #6FB3E0;
+    --alumni-dim: #16232e;
+    --lilac:      #B876F0;
+    --lilac-dim:  #241a34;
+
+    /* colores reales sacados de tu Apps Script: mismo semáforo de STATUS
+       (aplicarSemaforoEstados_) y la misma paleta pastel de Responsable/
+       Asistente (PALETA_PASTEL_HEX), para que esto se sienta continuación
+       de tu Sheet, no algo distinto. */
+    --st-complete:   #c8f7c5;
+    --st-progress:   #ffe1a8;
+    --st-notstarted: #f7c5c5;
+    --st-pendingdoc: #ded1f7;
+
+    --font-display: "Titillium Web", "Arial Narrow", sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+    color-scheme: dark;
+  }
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:var(--ink); color:var(--paper); font-family:var(--font-body); font-size:14px; line-height:1.5; min-height:100vh; -webkit-font-smoothing:antialiased; }
+  ::selection{ background:var(--volt); color:#0b1a0a; }
+  a{ color:var(--volt); }
+  button{ font-family:inherit; cursor:pointer; }
+  input,select,textarea{ font-family:inherit; }
+  h1,h2,h3{ font-family:var(--font-display); text-wrap:balance; margin:0; }
+  .num{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+  [hidden]{ display:none !important; }
+
+  #app{ min-height:100vh; display:flex; flex-direction:column; }
+
+  /* ---- topbar ---- */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 24px; background:var(--ink-2); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:30; }
+  .brand{ display:flex; align-items:center; gap:12px; min-width:0; overflow:hidden; }
+  .brand .mark{ width:34px; height:34px; border-radius:8px; background:var(--volt); color:#0b1a0a; font-family:var(--font-display); font-weight:900; font-size:16px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .brand .wordmark{ font-family:var(--font-display); font-weight:900; font-size:18px; letter-spacing:.01em; line-height:1; white-space:nowrap; }
+  .brand .wordmark .g{ color:var(--paper); }
+  .brand .wordmark .e{ color:var(--volt); }
+  .brand .tagline{ font-size:10.5px; color:var(--steel-dim); letter-spacing:.12em; text-transform:uppercase; margin-top:3px; white-space:nowrap; }
+  .phase-badge{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:4px 9px; border-radius:100px; background:var(--volt-dim); color:var(--volt); border:1px solid #1f5a24; white-space:nowrap; }
+  .phase-badge .pb-short{ display:none; }
+  .topbar-right{ display:flex; align-items:center; gap:10px; }
+  .icon-btn{ background:transparent; border:1px solid var(--line); color:var(--steel); width:32px; height:32px; border-radius:7px; display:flex; align-items:center; justify-content:center; transition:.15s; flex:none; }
+  .icon-btn:hover{ border-color:var(--volt); color:var(--volt); }
+
+  /* ---- account bar (simulación de login/departamento) ---- */
+  .account-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 24px; background:var(--ink-3); border-bottom:1px solid var(--line); font-size:11.5px; }
+  .account-label{ color:var(--steel-dim); text-transform:uppercase; letter-spacing:.06em; font-size:10px; font-weight:700; }
+  .account-bar select{ background:var(--ink); border:1px solid var(--line); color:var(--paper); font-family:inherit; font-weight:700; font-size:12px; border-radius:6px; padding:5px 8px; }
+  .account-hint{ color:var(--steel-dim); font-size:10.5px; }
+  @media (max-width:700px){ .account-hint{ display:none; } .account-bar{ padding:8px 14px; } }
+
+  /* ---- board tabs ---- */
+  .board-tabs{ display:flex; gap:4px; padding:0 24px; background:var(--ink-2); border-bottom:1px solid var(--line); overflow-x:auto; }
+  .board-tab{ background:transparent; border:none; color:var(--steel); padding:12px 14px; font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:.02em; border-bottom:2px solid transparent; white-space:nowrap; }
+  .board-tab.active{ color:var(--paper); border-bottom-color:var(--volt); }
+  .board-tab .n{ font-size:10.5px; color:var(--steel-dim); font-weight:600; margin-left:6px; }
+
+  main{ flex:1; width:100%; max-width:1400px; margin:0 auto; padding:20px 24px 60px; }
+
+  /* ---- legend / view switch bar ---- */
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+  .legend{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--steel-dim); }
+  .legend-dot{ width:9px; height:9px; border-radius:3px; flex:none; }
+  .view-switch{ display:flex; gap:4px; background:var(--ink-2); border:1px solid var(--line); border-radius:8px; padding:3px; }
+  .view-btn{ background:transparent; border:none; color:var(--steel); font-size:12px; font-weight:700; padding:7px 12px; border-radius:6px; }
+  .view-btn.active{ background:var(--volt); color:#0b1a0a; }
+
+  /* ---- proyecto / grupo structure ---- */
+  .proyecto{ margin-bottom:22px; }
+  .proyecto-head{ display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:8px 8px 0 0; background:var(--volt-dim); border:1px solid #1f5a24; border-bottom:none; }
+  .proyecto-head h2{ font-size:12.5px; color:var(--volt); text-transform:uppercase; letter-spacing:.08em; }
+  .proyecto-head .count{ font-size:11px; color:var(--steel-dim); margin-left:auto; }
+  .proyecto-body{ border:1px solid var(--line); border-top:none; border-radius:0 0 8px 8px; background:var(--ink-2); overflow:hidden; }
+
+  .grupo{ border-bottom:1px solid var(--line); }
+  .grupo:last-child{ border-bottom:none; }
+  .grupo-head{ display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--ink-3); cursor:pointer; user-select:none; }
+  .grupo-head .chev{ width:14px; height:14px; flex:none; color:var(--steel-dim); transition:transform .15s; }
+  .grupo.collapsed .chev{ transform:rotate(-90deg); }
+  .grupo-head .name{ font-family:var(--font-display); font-weight:700; font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--paper); }
+  .grupo-head .n{ font-size:11px; color:var(--steel-dim); }
+  .grupo-head .add-btn{ margin-left:auto; background:transparent; border:1px dashed var(--line); color:var(--steel-dim); font-size:11px; padding:4px 10px; border-radius:6px; }
+  .grupo-head .add-btn:hover{ border-color:var(--volt); color:var(--volt); }
+  .grupo-rows{ }
+  .grupo.collapsed .grupo-rows{ display:none; }
+  .grupo-empty{ padding:14px; font-size:12px; color:var(--steel-dim); font-style:italic; }
+  .grupo-hidden-note{ padding:8px 14px; font-size:11px; color:var(--steel-dim); font-style:italic; border-top:1px dashed var(--line); }
+
+  /* ---- table view row ---- */
+  .task-row{ display:grid; grid-template-columns: 22px 1fr 96px 96px 52px 110px 72px 118px; gap:12px; align-items:center; padding:9px 14px; border-top:1px solid var(--line); font-size:12.5px; cursor:pointer; transition:background .1s; }
+  .grupo-rows .task-row:first-child{ border-top:none; }
+  .task-row:hover{ background:var(--ink-3); }
+  .task-row.is-doc{ background:rgba(184,118,240,.05); }
+  .task-row .doc-flag{ width:16px; height:16px; border-radius:4px; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--steel-dim); flex:none; }
+  .task-row .doc-flag.on{ background:var(--lilac-dim); border-color:var(--lilac); color:var(--lilac); }
+  .task-row .title{ min-width:0; }
+  .task-row .title .t{ color:var(--paper); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .task-row .title .info{ font-size:10.5px; color:var(--steel-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
+  .task-row .dates{ display:flex; flex-direction:column; gap:1px; font-family:var(--font-mono); font-size:10px; color:var(--steel); white-space:nowrap; overflow:hidden; min-width:0; }
+  .task-row .dates .d2{ color:var(--steel-dim); }
+  .task-row .dates .dur{ color:var(--steel-dim); font-size:9.5px; margin-top:1px; }
+  .task-row .people{ display:flex; gap:-4px; }
+  .person-chip{ width:24px; height:24px; border-radius:50%; font-family:var(--font-display); font-weight:900; font-size:9.5px; display:flex; align-items:center; justify-content:center; color:#1D1D1B; border:2px solid var(--ink-2); margin-left:-6px; flex:none; }
+  .person-chip:first-child{ margin-left:0; }
+  .person-chip.team-badge{ border-radius:6px; font-size:8px; letter-spacing:.02em; }
+  .task-row .complete{ display:flex; flex-direction:column; gap:3px; }
+  .complete-bar{ height:5px; border-radius:100px; background:var(--ink); overflow:hidden; }
+  .complete-bar > span{ display:block; height:100%; background:var(--volt); border-radius:100px; }
+  .complete .pct{ font-family:var(--font-mono); font-size:10px; color:var(--steel-dim); }
+  .status-pill{ font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:4px 8px; border-radius:100px; color:#1D1D1B; text-align:center; white-space:nowrap; }
+  .cal-flag{ display:flex; align-items:center; gap:4px; font-size:10px; color:var(--steel-dim); white-space:nowrap; }
+  .cal-flag.on{ color:var(--alumni); }
+  .cal-flag svg{ width:12px; height:12px; flex:none; }
+
+  @media (max-width:480px){
+    .topbar{ padding:10px 14px; gap:8px; }
+    .brand .tagline{ display:none; }
+    .phase-badge .pb-full{ display:none; }
+    .phase-badge .pb-short{ display:inline; }
+    main{ padding:14px 12px 40px; }
+  }
+
+  @media (max-width:900px){
+    .task-row{ grid-template-columns: 20px 1fr 68px 72px 88px; gap:8px; }
+    .task-row .dates, .task-row .cal-flag{ display:none; }
+    .status-pill{ font-size:9px; padding:4px 6px; }
+  }
+  @media (max-width:560px){
+    .task-row{ grid-template-columns: 18px 1fr 80px; gap:8px; padding:9px 10px; }
+    .task-row .people, .task-row .complete{ display:none; }
+    .status-pill{ white-space:normal; text-align:center; line-height:1.2; border-radius:6px; font-size:8.5px; padding:4px 5px; }
+    .proyecto-head, .grupo-head{ padding:9px 10px; }
+  }
+
+  /* ---- timeline view: Gantt diario ---- */
+  .timeline-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:8px; background:var(--ink-2); }
+  .timeline-grid{ display:grid; min-width:max-content; position:relative; }
+  .tl-head-row{ display:grid; grid-column:1 / -1; position:sticky; top:0; z-index:5; background:var(--ink-3); }
+  .tl-row{ display:grid; grid-column:1 / -1; border-top:1px solid var(--line); }
+  .tl-sticky{ position:sticky; left:0; z-index:2; background:var(--ink-2); border-right:1px solid var(--line); padding:8px 12px; display:flex; align-items:center; gap:8px; min-width:0; }
+  .tl-head-row .tl-sticky{ background:var(--ink-3); z-index:6; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel-dim); font-weight:700; }
+  .tl-sticky .t{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11.5px; color:var(--paper); }
+  .tl-days{ position:relative; }
+  .tl-months{ display:flex; height:24px; }
+  .tl-month{ flex:none; border-right:1px solid var(--line); font-family:var(--font-display); font-weight:700; font-size:10px; letter-spacing:.03em; text-transform:uppercase; color:var(--steel); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .tl-daynums{ display:flex; height:22px; border-top:1px solid var(--line); }
+  .tl-daynum{ flex:none; border-right:1px solid var(--line); font-family:var(--font-mono); font-size:9.5px; color:var(--steel-dim); display:flex; align-items:center; justify-content:center; }
+  .tl-daynum.weekend{ background:rgba(255,255,255,.03); }
+  .tl-daynum.today{ background:rgba(31,237,20,.16); color:var(--volt); font-weight:700; }
+  .tl-bar-track{ position:relative; height:38px; }
+  .tl-bar{ position:absolute; top:8px; height:22px; border-radius:7px; display:flex; align-items:center; padding:0 8px; font-size:9.5px; font-weight:700; color:#1D1D1B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .tl-today-line{ position:absolute; top:0; bottom:0; width:2px; background:var(--volt); z-index:3; pointer-events:none; }
+  .tl-today-label{ position:absolute; top:3px; left:50%; transform:translateX(-50%); background:var(--volt); color:#0b1a0a; font-size:8px; font-weight:800; letter-spacing:.03em; padding:1px 4px; border-radius:4px; white-space:nowrap; }
+
+  /* ---- panels / modal (Track-e pattern) ---- */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .modal-card{ background:var(--ink-2); border:1px solid var(--line); border-radius:12px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .modal-head .n{ font-family:var(--font-display); font-weight:700; font-size:15px; }
+  .modal-close{ background:transparent; border:none; color:var(--steel); font-size:16px; width:28px; height:28px; border-radius:6px; }
+  .modal-close:hover{ background:var(--ink-3); color:var(--paper); }
+  .modal-body{ padding:18px 20px; display:flex; flex-direction:column; gap:14px; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field label{ display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel-dim); margin-bottom:5px; }
+  .field input, .field select, .field textarea{ width:100%; background:var(--ink); border:1px solid var(--line); border-radius:7px; padding:9px 10px; color:var(--paper); font-size:13px; }
+  .field textarea{ resize:vertical; min-height:60px; }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:2px solid var(--volt); outline-offset:1px; }
+  .checkline{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--steel); }
+  .btn-primary{ background:var(--volt); color:#0b1a0a; border:none; border-radius:8px; padding:11px; font-family:var(--font-display); font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.03em; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-primary:disabled{ opacity:.55; cursor:default; filter:none; }
+  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--steel); border-radius:8px; padding:10px; font-size:12.5px; font-weight:600; }
+  .btn-ghost:hover{ border-color:var(--danger); color:var(--danger); }
+  .info-panel{ background:var(--ink-3); border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:12px; color:var(--steel); line-height:1.6; }
+  .info-panel b{ color:var(--paper); }
+  .toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink-2); border:1px solid var(--volt); color:var(--paper); padding:11px 18px; border-radius:8px; font-size:12.5px; opacity:0; pointer-events:none; transition:.2s; z-index:200; max-width:90vw; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.error{ border-color:var(--danger); }
+
+  .empty-state{ padding:40px 20px; text-align:center; color:var(--steel-dim); font-size:12.5px; }
+
+  /* ---- setup wizard chips / member rows ---- */
+  .sub-chip{ display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--ink); border:1px solid var(--line); border-radius:7px; padding:7px 11px; font-size:12.5px; color:var(--paper); }
+  .sub-chip button{ background:transparent; border:none; color:var(--steel-dim); font-size:13px; line-height:1; padding:2px 4px; }
+  .sub-chip button:hover{ color:var(--danger); }
+  .board-draft{ border:1px solid var(--line); border-radius:9px; padding:12px; background:var(--ink-3); display:flex; flex-direction:column; gap:9px; }
+  .board-draft-head{ display:flex; align-items:center; gap:8px; }
+  .board-draft-head input{ flex:1; background:var(--ink); border:1px solid var(--line); border-radius:7px; padding:8px 10px; color:var(--paper); font-family:var(--font-display); font-weight:700; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; }
+  .board-draft-remove{ flex:none; background:transparent; border:1px solid var(--line); color:var(--steel-dim); border-radius:6px; width:30px; height:32px; }
+  .board-draft-remove:hover{ border-color:var(--danger); color:var(--danger); }
+  .board-draft-label{ font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel-dim); }
+  .board-draft-subs{ display:flex; flex-wrap:wrap; gap:6px; }
+  .board-draft-addrow{ display:flex; gap:8px; }
+  .board-draft-addrow input{ flex:1; background:var(--ink); border:1px solid var(--line); border-radius:7px; padding:7px 9px; color:var(--paper); font-size:12px; }
+  .board-draft-addrow button{ flex:none; background:transparent; border:1px dashed var(--line); color:var(--steel-dim); border-radius:6px; padding:0 12px; font-size:11.5px; }
+  .board-draft-addrow button:hover{ border-color:var(--volt); color:var(--volt); }
+  .dept-group{ display:flex; flex-direction:column; gap:8px; }
+  .dept-group-title{ font-family:var(--font-display); font-weight:700; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--volt); }
+  .member-row{ display:grid; grid-template-columns:1fr 1fr 1fr 30px; gap:8px; align-items:center; }
+  .member-row input{ width:100%; background:var(--ink); border:1px solid var(--line); border-radius:7px; padding:8px 9px; color:var(--paper); font-size:12.5px; }
+  .member-row input:focus{ outline:2px solid var(--volt); outline-offset:1px; }
+  .member-row .member-del{ background:transparent; border:1px solid var(--line); color:var(--steel-dim); border-radius:6px; width:30px; height:32px; flex:none; }
+  .member-row .member-del:hover{ border-color:var(--danger); color:var(--danger); }
+  @media (max-width:560px){
+    .member-row{ grid-template-columns:1fr; gap:6px; padding:10px; border:1px solid var(--line); border-radius:8px; }
+    .member-row .member-del{ width:100%; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">G</div>
+      <div>
+        <div class="wordmark"><span class="g">GANTT</span> <span class="e">e-Tech</span></div>
+        <div class="tagline" id="dept-tagline">Powertrain</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="phase-badge"><span class="pb-full">Fase 2 · Conectado</span><span class="pb-short">Fase 2</span></span>
+      <button class="icon-btn" id="btn-info" title="Cómo funciona esto" aria-label="Info">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="board-tabs" id="board-tabs"></nav>
+
+  <div class="account-bar">
+    <span class="account-label">Cuenta simulada</span>
+    <select id="dept-switch"></select>
+    <button class="icon-btn" id="btn-members" title="Directorio de miembros" aria-label="Miembros">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-setup" title="Configurar un Gantt desde cero" aria-label="Configurar desde cero">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <span class="account-hint">Esto sigue simulando el login por departamento — más adelante vendrá de una cuenta real. Lo que sí es ya real: los datos se guardan en la base de datos, no en tu navegador.</span>
+  </div>
+
+  <main>
+    <div class="toolbar">
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:var(--st-notstarted)"></span>No empezado</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--st-progress)"></span>En proceso</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--st-complete)"></span>Completado</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--st-pendingdoc)"></span>Pendiente de doc</div>
+      </div>
+      <label class="checkline" id="show-aged-wrap"><input type="checkbox" id="show-aged"> Mostrar completadas de hace más de 1 semana</label>
+      <div class="view-switch">
+        <button class="view-btn active" id="view-table" type="button">Lista</button>
+        <button class="view-btn" id="view-timeline" type="button">Timeline</button>
+      </div>
+    </div>
+
+    <div id="board-content"><div class="empty-state">Cargando datos del equipo…</div></div>
+  </main>
+
+</div>
+
+<div class="modal-overlay" id="task-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="n" id="tm-title">Tarea</div>
+      <button class="modal-close" id="tm-close" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Título</label>
+        <input type="text" id="tm-titulo">
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Fecha inicio</label><input type="date" id="tm-inicio"></div>
+        <div class="field"><label>Fecha fin</label><input type="date" id="tm-fin"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Responsable</label><select id="tm-responsable"></select></div>
+        <div class="field"><label>Asistente</label><select id="tm-asistente"></select></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>% Completado</label><input type="number" id="tm-complete" min="0" max="100" step="5"></div>
+        <div class="field"><label>Estado (auto, según %)</label><input type="text" id="tm-status" disabled></div>
+      </div>
+      <div class="field">
+        <label>Información adicional</label>
+        <textarea id="tm-info"></textarea>
+      </div>
+      <div class="field">
+        <label>Invitados (calendario)</label>
+        <input type="text" id="tm-invitados" placeholder="all, nombre@estudiantat.upc.edu">
+      </div>
+      <label class="checkline"><input type="checkbox" id="tm-requieredoc"> Requiere documentación (genera tarea automática al finalizar)</label>
+      <div class="info-panel" id="tm-cal-info"></div>
+      <button class="btn-primary" type="button" id="tm-save">Guardar cambios</button>
+      <button class="btn-ghost" type="button" id="tm-delete">Eliminar tarea</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="info-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="n">Qué es esto</div>
+      <button class="modal-close" id="info-close" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-panel">
+        Esto ya es la <b>Fase 2</b>: la estructura y el diseño son los mismos que validaste en la vista
+        previa, pero ahora los cambios (editar una tarea, marcar % completado, crear un tablero nuevo,
+        añadir un miembro) se guardan de verdad en una base de datos — todo el que abra este enlace ve
+        lo mismo que tú, en tiempo real.
+      </div>
+      <div class="info-panel">
+        <b>Lo que viene en la Fase 3:</b> sincronización con Google Calendar y los correos
+        automáticos (tareas atrasadas, resumen para caps/chief, dashboard semanal, aviso de nueva
+        tarea). Esto necesita que crees un proyecto en Google Cloud con la API de Calendar y Gmail
+        habilitadas — te paso los pasos exactos cuando lleguemos ahí.
+      </div>
+      <div class="info-panel">
+        Prueba también los botones de <b>Miembros</b> y <b>Configurar desde cero</b>, junto al
+        selector de "Cuenta simulada" debajo de las pestañas, y el botón <b>+ tarea</b> dentro de
+        cada apartado: todo lo que hagas ahí queda guardado.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="setup-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="n">Configurar un Gantt desde cero</div>
+      <button class="modal-close" id="setup-close" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-panel">
+        Así sería el primer paso si entraras a esta web sin ningún Gantt todavía: dices de qué
+        departamento eres, y luego creas los subapartados de ese departamento (como GENERAL / M&amp;I
+        / ACCU / REFRI) — cada uno se convierte en una pestaña. Dentro de cada subapartado puedes
+        crear a su vez otros apartados (por ejemplo, dentro de M&amp;I: "Inverters", "Testbench"...).
+        Se crea ya en la base de datos: al terminar, solo verás los Gantt de tu departamento.
+      </div>
+      <div class="field">
+        <label>¿De qué departamento eres?</label>
+        <input type="text" id="setup-dept" placeholder="p. ej. Powertrain, Aero, Chassis, Driverless...">
+      </div>
+      <div class="field">
+        <label>Subapartados de tu departamento</label>
+        <div id="setup-boards-list" style="display:flex; flex-direction:column; gap:12px; margin-bottom:10px;"></div>
+        <button type="button" class="btn-ghost" id="setup-add-board">+ Añadir subapartado (pestaña)</button>
+      </div>
+      <button class="btn-primary" type="button" id="setup-create">Crear y entrar como este departamento</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="members-modal" hidden>
+  <div class="modal-card" style="max-width:640px;">
+    <div class="modal-head">
+      <div class="n">Directorio de miembros</div>
+      <button class="modal-close" id="members-close" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-panel">
+        Nombre, correo y departamento de cada persona. Se guarda en la base de datos propia de este
+        proyecto — cada cambio que hagas aquí (editar un campo, añadir o quitar a alguien) queda para
+        todo el equipo.
+      </div>
+      <div id="members-list" style="display:flex; flex-direction:column; gap:16px;"></div>
+      <button class="btn-primary" type="button" id="members-add">+ Añadir miembro</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="app-toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ PALETA REAL DE TU APPS SCRIPT ============ */
+// PALETA_PASTEL_HEX (Responsable/Asistente) y los 4 colores del semáforo de
+// STATUS (aplicarSemaforoEstados_), copiados literalmente de tu script para
+// que esto se sienta continuación de tu Sheet, no una paleta inventada.
+var PALETA_PASTEL = ['#FFD1DC','#FFE0B2','#FFF9C4','#DCEDC8','#C8E6C9','#B2DFDB','#B3E5FC','#C5CAE9','#D1C4E9','#F8BBD0','#FFCCBC','#D7CCC8','#CFD8DC','#F0F4C3'];
+var STATUS_COLORS = { complete:'#c8f7c5', progress:'#ffe1a8', notstarted:'#f7c5c5', pendingdoc:'#ded1f7' };
+var TEAM_BADGE_COLOR = { AERO:'#f0b878', STRUCTURAL:'#f0b878', TRANSMI:'#e4432b', 'IAMG (patró)':'#8c918d' };
+
+function indiceColorEstable(texto, len){
+  var clave = String(texto||'').trim().toLowerCase();
+  var hash = 0;
+  for (var i=0;i<clave.length;i++) hash = (hash*31 + clave.charCodeAt(i)) >>> 0;
+  return hash % len;
+}
+function personColor(nombre){
+  if (TEAM_BADGE_COLOR[nombre]) return TEAM_BADGE_COLOR[nombre];
+  return PALETA_PASTEL[indiceColorEstable(nombre, PALETA_PASTEL.length)];
+}
+function initials(nombre){
+  if (!nombre) return '?';
+  var parts = String(nombre).replace(/\(.*\)/,'').trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+}
+
+/* ============ ESTADO -> COLOR, igual regex que aplicarSemaforoEstados_ ============ */
+function statusColor(status){
+  var s = String(status||'').toLowerCase();
+  if (/complet/.test(s)) return STATUS_COLORS.complete;
+  if (/proces|medias/.test(s)) return STATUS_COLORS.progress;
+  if (/pendient/.test(s)) return STATUS_COLORS.pendingdoc;
+  if (/empez/.test(s)) return STATUS_COLORS.notstarted;
+  return STATUS_COLORS.notstarted;
+}
+// Estado automático según % completado (misma regla que actualizarEstadosPorPorcentaje_)
+function computeStatus(task){
+  var pct = task.complete;
+  if (pct === null || pct === undefined || pct <= 0) return 'No empezado';
+  if (pct >= 100){
+    if (task.requiereDoc && !task.docCompleta) return 'Pendiente de doc';
+    return 'Completado';
+  }
+  return 'En proceso';
+}
+
+function $(id){ return document.getElementById(id); }
+function escapeHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(iso){
+  if (!iso) return '—';
+  var d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'2-digit' });
+}
+function daysBetween(a,b){ return Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 86400000); }
+
+// Una tarea "Completado" (no "Pendiente de doc", esas nunca se ocultan) se
+// oculta de la Lista pasada más de una semana desde que se completó.
+function isAgedOut(task){
+  if (task.status !== 'Completado' || !task.completedAt) return false;
+  var todayIso = new Date().toISOString().slice(0,10);
+  return daysBetween(task.completedAt, todayIso) > 7;
+}
+
+function showToast(msg, isError){
+  var el = $('app-toast');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(function(){ el.classList.remove('show'); }, 3200);
+}
+
+/* ============ CLIENTE DE LA API (Fase 2) ============ */
+var API_BASE = '/api';
+function handleApiResponse(res){
+  if (!res.ok){
+    return res.json().catch(function(){ return {}; }).then(function(errBody){
+      throw new Error(errBody.error || ('Error ' + res.status));
+    });
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+function apiGet(path){ return fetch(API_BASE + path).then(handleApiResponse); }
+function apiSend(method, path, body){
+  return fetch(API_BASE + path, {
+    method: method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  }).then(handleApiResponse);
+}
+
+/* ============ ESTADO EN MEMORIA (relleno desde la API) ============ */
+var BOARDS = [];
+var MEMBERS = [];
+var state = { currentDept: null, boardSlug: null, view: 'table', collapsed: {}, showAged: false };
+var currentBoard = null;
+
+// Recalcula, sobre los datos que acaban de llegar de la API, el mismo
+// Estado automático y la misma aproximación de completedAt que ya usaba la
+// vista previa de la Fase 1 — la base de datos guarda los campos base
+// (complete, requiereDoc...) y esto deriva el resto igual que antes.
+function applyComputedFields(){
+  BOARDS.forEach(function(board){
+    board.proyectos.forEach(function(p){ p.grupos.forEach(function(g){ g.tasks.forEach(function(task){
+      task.status = computeStatus(task);
+      task.board = board.slug;
+      if (task.status === 'Completado' && !task.completedAt) task.completedAt = task.end || null;
+    }); }); });
+  });
+}
+
+function loadData(){
+  return apiGet('/data').then(function(data){
+    BOARDS = data.boards;
+    MEMBERS = data.members;
+    applyComputedFields();
+  });
+}
+
+function allTasksFlat(){
+  var out = [];
+  BOARDS.forEach(function(board){
+    board.proyectos.forEach(function(p){
+      p.grupos.forEach(function(g){
+        g.tasks.forEach(function(task){ out.push(task); });
+      });
+    });
+  });
+  return out;
+}
+function taskById(id){
+  return allTasksFlat().find(function(t){ return t._id === id; });
+}
+function findGrupoById(grupoId){
+  var found = null;
+  BOARDS.forEach(function(board){ board.proyectos.forEach(function(p){ p.grupos.forEach(function(g){ if (g.id === grupoId) found = g; }); }); });
+  return found;
+}
+
+/* ============ RENDER: cuenta simulada + board tabs ============ */
+function departmentsList(){
+  var out = [];
+  BOARDS.forEach(function(b){ if (b.department && out.indexOf(b.department) === -1) out.push(b.department); });
+  return out;
+}
+function boardsForCurrentDept(){
+  return BOARDS.filter(function(b){ return b.department === state.currentDept; });
+}
+function renderAccountBar(){
+  var sel = $('dept-switch');
+  var depts = departmentsList();
+  sel.innerHTML = depts.map(function(d){ return '<option value="' + escapeHtml(d) + '">' + escapeHtml(d) + '</option>'; }).join('');
+  if (state.currentDept) sel.value = state.currentDept;
+  $('dept-tagline').textContent = state.currentDept || 'Sin departamento todavía';
+}
+$('dept-switch').addEventListener('change', function(){
+  state.currentDept = $('dept-switch').value;
+  var mine = boardsForCurrentDept();
+  state.boardSlug = mine.length ? mine[0].slug : null;
+  render();
+});
+
+function renderTabs(){
+  var wrap = $('board-tabs');
+  wrap.innerHTML = '';
+  boardsForCurrentDept().forEach(function(board){
+    var count = 0;
+    board.proyectos.forEach(function(p){ p.grupos.forEach(function(g){ count += g.tasks.length; }); });
+    var btn = document.createElement('button');
+    btn.className = 'board-tab' + (board.slug === state.boardSlug ? ' active' : '');
+    btn.type = 'button';
+    btn.innerHTML = board.label + '<span class="n">' + count + '</span>';
+    btn.addEventListener('click', function(){ state.boardSlug = board.slug; render(); });
+    wrap.appendChild(btn);
+  });
+}
+
+/* ============ RENDER: table view ============ */
+function personChipHtml(nombre){
+  if (!nombre) return '';
+  var isTeam = /^[A-ZÁÉÍÓÚ ]+( ?\(.*\))?$/.test(nombre) && nombre === nombre.toUpperCase() && nombre.length <= 12 && !/[a-z]/.test(nombre.replace(/\(.*\)/,''));
+  var cls = 'person-chip' + (isTeam ? ' team-badge' : '');
+  return '<span class="' + cls + '" style="background:' + personColor(nombre) + '" title="' + nombre + '">' + (isTeam ? nombre.slice(0,4) : initials(nombre)) + '</span>';
+}
+
+function taskRowHtml(task){
+  var status = task.status || computeStatus(task);
+  var sc = statusColor(status);
+  var peopleHtml = personChipHtml(task.responsable) + personChipHtml(task.asistente);
+  var infoHtml = task.info ? '<div class="info">' + escapeHtml(task.info) + '</div>' : '';
+  return '' +
+    '<div class="task-row' + (task.isDoc ? ' is-doc' : '') + '" data-id="' + task._id + '">' +
+      '<span class="doc-flag' + (task.requiereDoc ? ' on' : '') + '" title="' + (task.requiereDoc ? 'Requiere documentación' : '') + '">' +
+        (task.requiereDoc ? '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>' : '') +
+      '</span>' +
+      '<div class="title"><div class="t">' + escapeHtml(task.title) + '</div>' + infoHtml + '</div>' +
+      '<div class="dates"><span class="d1">' + fmtDate(task.start) + '</span><span class="d2">&rarr; ' + fmtDate(task.end) + '</span><span class="dur">' + task.dur + ' días</span></div>' +
+      '<div class="people">' + peopleHtml + '</div>' +
+      '<div class="complete"><div class="complete-bar"><span style="width:' + (task.complete||0) + '%"></span></div><span class="pct num">' + (task.complete||0) + '%</span></div>' +
+      '<span class="status-pill" style="background:' + sc + '">' + status + '</span>' +
+      '<span class="cal-flag' + (task.calSynced ? ' on' : '') + '">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>' +
+        (task.calSynced ? 'Sync' : 'Sin sync') +
+      '</span>' +
+    '</div>';
+}
+
+function renderTable(board){
+  var html = '';
+  board.proyectos.forEach(function(proy, pi){
+    var count = 0;
+    proy.grupos.forEach(function(g){ count += g.tasks.length; });
+    html += '<div class="proyecto"><div class="proyecto-head"><h2>' + escapeHtml(proy.name) + '</h2><span class="count">' + count + ' tareas</span></div><div class="proyecto-body">';
+    proy.grupos.forEach(function(g, gi){
+      var key = board.slug + '-' + pi + '-' + gi;
+      var collapsed = !!state.collapsed[key];
+      var visible = g.tasks.filter(function(task){ return state.showAged || !isAgedOut(task); });
+      var hiddenCount = g.tasks.length - visible.length;
+      html += '<div class="grupo' + (collapsed ? ' collapsed' : '') + '" data-key="' + key + '">';
+      html += '<div class="grupo-head"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg><span class="name">' + escapeHtml(g.name) + '</span><span class="n">' + g.tasks.length + '</span><button type="button" class="add-btn" data-add="' + key + '" data-grupo-id="' + g.id + '">+ tarea</button></div>';
+      html += '<div class="grupo-rows">';
+      if (g.tasks.length === 0){
+        html += '<div class="grupo-empty">Sin tareas todavía.</div>';
+      } else {
+        if (visible.length === 0){
+          html += '<div class="grupo-empty">Todo completado hace más de una semana en este apartado — oculto.</div>';
+        } else {
+          visible.forEach(function(task){ html += taskRowHtml(task); });
+        }
+        if (hiddenCount > 0){
+          html += '<div class="grupo-hidden-note">+' + hiddenCount + ' completada' + (hiddenCount > 1 ? 's' : '') + ' hace más de una semana, ocultas</div>';
+        }
+      }
+      html += '</div></div>';
+    });
+    html += '</div></div>';
+  });
+  $('board-content').innerHTML = html;
+  wireTableEvents(board);
+}
+
+function handleAddTaskClick(grupoId){
+  apiSend('POST', '/grupos/' + grupoId + '/tasks', { title: 'Nueva tarea' })
+    .then(function(created){
+      return loadData().then(function(){ return created._id; });
+    })
+    .then(function(createdId){
+      render();
+      var task = taskById(createdId);
+      if (task) openTaskModal(task);
+      showToast('Tarea creada. Rellena los detalles y guarda.');
+    })
+    .catch(function(err){ showToast('Error al crear la tarea: ' + err.message, true); });
+}
+
+function wireTableEvents(board){
+  Array.prototype.forEach.call(document.querySelectorAll('.grupo-head'), function(head){
+    head.addEventListener('click', function(e){
+      if (e.target.closest('.add-btn')) return;
+      var grupo = head.closest('.grupo');
+      var key = grupo.getAttribute('data-key');
+      state.collapsed[key] = !state.collapsed[key];
+      grupo.classList.toggle('collapsed');
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.add-btn'), function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      handleAddTaskClick(Number(btn.getAttribute('data-grupo-id')));
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.task-row'), function(row){
+    row.addEventListener('click', function(){
+      var task = taskById(row.getAttribute('data-id'));
+      if (task) openTaskModal(task);
+    });
+  });
+}
+
+/* ============ RENDER: timeline view (Gantt diario) ============ */
+function monthBoundaries(minStart, totalDays){
+  var months = [];
+  var cur = new Date(minStart + 'T00:00:00');
+  for (var i=0;i<totalDays;i++){
+    var key = cur.getFullYear() + '-' + cur.getMonth();
+    if (!months.length || months[months.length-1].key !== key){
+      months.push({ key:key, label:cur.toLocaleDateString('es-ES',{month:'short',year:'2-digit'}).replace('.',''), days:0 });
+    }
+    months[months.length-1].days++;
+    cur.setDate(cur.getDate()+1);
+  }
+  return months;
+}
+
+function renderTimeline(board){
+  var flat = [];
+  board.proyectos.forEach(function(p){ p.grupos.forEach(function(g){ g.tasks.forEach(function(task){ if (task.start && task.end) flat.push(task); }); }); });
+  if (flat.length === 0){
+    $('board-content').innerHTML = '<div class="empty-state">No hay tareas con fechas en este tablero todavía.</div>';
+    return;
+  }
+  var minStart = flat.reduce(function(a,t){ return t.start < a ? t.start : a; }, flat[0].start);
+  var maxEnd = flat.reduce(function(a,t){ return t.end > a ? t.end : a; }, flat[0].end);
+  var totalDays = daysBetween(minStart, maxEnd) + 1;
+  var todayIso = new Date().toISOString().slice(0,10);
+  var dayWidth = 24;
+  var totalWidth = totalDays * dayWidth;
+  var months = monthBoundaries(minStart, totalDays);
+  var cols = '220px ' + totalWidth + 'px';
+
+  var html = '<div class="timeline-wrap"><div class="timeline-grid" style="grid-template-columns:' + cols + '">';
+
+  html += '<div class="tl-head-row" style="grid-template-columns:' + cols + '">';
+  html += '<div class="tl-sticky">Tarea</div>';
+  html += '<div class="tl-days"><div class="tl-months">';
+  months.forEach(function(m){
+    html += '<div class="tl-month" style="width:' + (m.days*dayWidth) + 'px">' + m.label + '</div>';
+  });
+  html += '</div><div class="tl-daynums">';
+  var cur = new Date(minStart + 'T00:00:00');
+  for (var i=0;i<totalDays;i++){
+    var iso = cur.toISOString().slice(0,10);
+    var isWeekend = cur.getDay()===0 || cur.getDay()===6;
+    html += '<div class="tl-daynum' + (isWeekend?' weekend':'') + (iso===todayIso?' today':'') + '" style="width:' + dayWidth + 'px">' + cur.getDate() + '</div>';
+    cur.setDate(cur.getDate()+1);
+  }
+  html += '</div></div></div>';
+
+  flat.forEach(function(task){
+    var offset = daysBetween(minStart, task.start);
+    var days = Math.max(1, daysBetween(task.start, task.end) + 1);
+    var barW = Math.max(10, days*dayWidth - 2);
+    var status = task.status || computeStatus(task);
+    var sc = statusColor(status);
+    var showLabel = barW >= 34;
+    html += '<div class="tl-row" style="grid-template-columns:' + cols + '" data-id="' + task._id + '">';
+    html += '<div class="tl-sticky"><span class="t">' + escapeHtml(task.title) + '</span></div>';
+    html += '<div class="tl-days"><div class="tl-bar-track">';
+    html += '<div class="tl-bar" style="left:' + (offset*dayWidth) + 'px;width:' + barW + 'px;background:' + sc + ';" title="' + escapeHtml(task.title) + '">' + (showLabel ? task.dur + 'd' : '') + '</div>';
+    html += '</div></div></div>';
+  });
+
+  var todayLeft = null;
+  if (todayIso >= minStart && todayIso <= maxEnd){
+    var todayOffset = daysBetween(minStart, todayIso);
+    todayLeft = 220 + todayOffset*dayWidth;
+    html += '<div class="tl-today-line" style="left:' + todayLeft + 'px"><span class="tl-today-label">HOY</span></div>';
+  }
+
+  html += '</div></div>';
+  $('board-content').innerHTML = html;
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tl-bar'), function(bar){
+    bar.addEventListener('click', function(){
+      var row = bar.closest('.tl-row');
+      var task = taskById(row.getAttribute('data-id'));
+      if (task) openTaskModal(task);
+    });
+  });
+
+  // Centra el scroll horizontal en la fecha de hoy, para no aterrizar en
+  // julio cuando el tablero llega hasta enero. La columna "Tarea" (220px)
+  // queda fija a la izquierda tapando lo que haya debajo, así que el centro
+  // real de la zona visible de días no es el centro del contenedor entero.
+  if (todayLeft !== null){
+    requestAnimationFrame(function(){
+      var wrapEl = document.querySelector('.timeline-wrap');
+      if (!wrapEl) return;
+      var STICKY_W = 220;
+      var usableW = Math.max(0, wrapEl.clientWidth - STICKY_W);
+      wrapEl.scrollLeft = Math.max(0, todayLeft - STICKY_W - usableW/2);
+    });
+  }
+}
+
+/* ============ MODAL DE TAREA ============ */
+function populateSelect(sel, extra){
+  var names = MEMBERS.map(function(m){ return m.name; });
+  sel.innerHTML = '<option value="">—</option>' + names.map(function(n){ return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('');
+  if (extra && names.indexOf(extra) === -1){
+    sel.innerHTML += '<option value="' + escapeHtml(extra) + '">' + escapeHtml(extra) + '</option>';
+  }
+}
+
+var editingTask = null;
+function openTaskModal(task){
+  editingTask = task;
+  $('tm-title').textContent = task.isDoc ? 'Documentación' : 'Editar tarea';
+  $('tm-titulo').value = task.title;
+  $('tm-inicio').value = task.start || '';
+  $('tm-fin').value = task.end || '';
+  populateSelect($('tm-responsable'), task.responsable);
+  populateSelect($('tm-asistente'), task.asistente);
+  $('tm-responsable').value = task.responsable || '';
+  $('tm-asistente').value = task.asistente || '';
+  $('tm-complete').value = task.complete || 0;
+  $('tm-status').value = task.status || computeStatus(task);
+  $('tm-info').value = task.info || '';
+  $('tm-invitados').value = (task.invitados||[]).join(', ');
+  $('tm-requieredoc').checked = !!task.requiereDoc;
+  $('tm-cal-info').innerHTML = task.calSynced
+    ? 'Esta tarea ya está sincronizada con Google Calendar en tu Sheet original (evento de todo el día en la fecha de fin, con recordatorio 1 semana y 1 hora antes). La sincronización en vivo desde esta web llega en la Fase 3.'
+    : 'Esta tarea todavía no tenía evento de Calendar asociado en tu Sheet original.';
+  $('task-modal').hidden = false;
+}
+$('tm-close').addEventListener('click', function(){ $('task-modal').hidden = true; });
+$('task-modal').addEventListener('click', function(e){ if (e.target.id === 'task-modal') $('task-modal').hidden = true; });
+
+$('tm-complete').addEventListener('input', function(){
+  var fake = Object.assign({}, editingTask, { complete: Number($('tm-complete').value) });
+  $('tm-status').value = computeStatus(fake);
+});
+
+$('tm-save').addEventListener('click', function(){
+  if (!editingTask) return;
+  var title = $('tm-titulo').value.trim() || editingTask.title;
+  var start = $('tm-inicio').value || null;
+  var end = $('tm-fin').value || null;
+  var responsable = $('tm-responsable').value;
+  var asistente = $('tm-asistente').value;
+  var complete = Number($('tm-complete').value) || 0;
+  var info = $('tm-info').value;
+  var invitados = $('tm-invitados').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  var requiereDoc = $('tm-requieredoc').checked;
+
+  var fakeForStatus = Object.assign({}, editingTask, { complete: complete, requiereDoc: requiereDoc });
+  var status = computeStatus(fakeForStatus);
+  var completedAt = editingTask.completedAt;
+  if (status === 'Completado'){
+    if (!completedAt) completedAt = new Date().toISOString().slice(0,10);
+  } else {
+    completedAt = null;
+  }
+
+  var payload = {
+    title: title, start: start, end: end, responsable: responsable, asistente: asistente,
+    complete: complete, info: info, invitados: invitados, requiereDoc: requiereDoc, completedAt: completedAt
+  };
+
+  $('tm-save').disabled = true;
+  apiSend('PUT', '/tasks/' + editingTask._id, payload)
+    .then(function(){ return loadData(); })
+    .then(function(){
+      $('task-modal').hidden = true;
+      showToast('Guardado. Ya lo ve todo el equipo.');
+      render();
+    })
+    .catch(function(err){ showToast('Error al guardar: ' + err.message, true); })
+    .then(function(){ $('tm-save').disabled = false; });
+});
+$('tm-delete').addEventListener('click', function(){
+  if (!editingTask) return;
+  apiSend('DELETE', '/tasks/' + editingTask._id)
+    .then(function(){ return loadData(); })
+    .then(function(){
+      $('task-modal').hidden = true;
+      showToast('Tarea eliminada.');
+      render();
+    })
+    .catch(function(err){ showToast('Error al eliminar: ' + err.message, true); });
+});
+
+/* ============ INFO MODAL ============ */
+$('btn-info').addEventListener('click', function(){ $('info-modal').hidden = false; });
+$('info-close').addEventListener('click', function(){ $('info-modal').hidden = true; });
+$('info-modal').addEventListener('click', function(e){ if (e.target.id === 'info-modal') $('info-modal').hidden = true; });
+
+/* ============ SETUP WIZARD (Configurar desde cero) ============ */
+function slugify(s){
+  return String(s||'').toLowerCase().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'nuevo';
+}
+// setupBoards: cada entrada es un subapartado en construcción (pestaña
+// futura), con su propia lista anidada de apartados dentro (los grupos).
+// Es solo el borrador local del formulario; se envía entero a la API al
+// pulsar "Crear".
+var setupBoards = [];
+function newDraftBoard(){ return { name:'', subs:[] }; }
+
+function renderSetupBoards(){
+  var wrap = $('setup-boards-list');
+  if (setupBoards.length === 0){
+    wrap.innerHTML = '<div style="font-size:11.5px;color:var(--steel-dim);font-style:italic;">Todavía no has añadido ningún subapartado.</div>';
+    return;
+  }
+  wrap.innerHTML = setupBoards.map(function(b, i){
+    var subsHtml = b.subs.map(function(s, si){
+      return '<div class="sub-chip"><span>' + escapeHtml(s) + '</span><button type="button" data-bi="' + i + '" data-si="' + si + '" class="sub-remove" aria-label="Quitar">✕</button></div>';
+    }).join('') || '<span style="font-size:11px;color:var(--steel-dim);font-style:italic;">Sin apartados dentro todavía (se creará uno "General").</span>';
+    return '' +
+      '<div class="board-draft" data-bi="' + i + '">' +
+        '<div class="board-draft-head">' +
+          '<input type="text" data-bi="' + i + '" class="board-draft-name" placeholder="Nombre del subapartado (p. ej. M&amp;I)" value="' + escapeHtml(b.name) + '">' +
+          '<button type="button" class="board-draft-remove" data-bi="' + i + '" aria-label="Quitar subapartado">✕</button>' +
+        '</div>' +
+        '<div class="board-draft-label">Apartados dentro de este subapartado</div>' +
+        '<div class="board-draft-subs">' + subsHtml + '</div>' +
+        '<div class="board-draft-addrow">' +
+          '<input type="text" data-bi="' + i + '" class="board-draft-sub-input" placeholder="Nombre del apartado (p. ej. Inverters)">' +
+          '<button type="button" class="board-draft-add-sub" data-bi="' + i + '">+ Añadir</button>' +
+        '</div>' +
+      '</div>';
+  }).join('');
+
+  Array.prototype.forEach.call(wrap.querySelectorAll('.board-draft-name'), function(input){
+    input.addEventListener('change', function(){ setupBoards[Number(input.getAttribute('data-bi'))].name = input.value.trim(); });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll('.board-draft-remove'), function(btn){
+    btn.addEventListener('click', function(){ setupBoards.splice(Number(btn.getAttribute('data-bi')), 1); renderSetupBoards(); });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll('.sub-remove'), function(btn){
+    btn.addEventListener('click', function(){
+      setupBoards[Number(btn.getAttribute('data-bi'))].subs.splice(Number(btn.getAttribute('data-si')), 1);
+      renderSetupBoards();
+    });
+  });
+  function addSubFrom(bi){
+    var input = wrap.querySelector('.board-draft-sub-input[data-bi="' + bi + '"]');
+    var val = input.value.trim();
+    if (!val) return;
+    setupBoards[bi].subs.push(val);
+    renderSetupBoards();
+    var again = wrap.querySelector('.board-draft-sub-input[data-bi="' + bi + '"]');
+    if (again) again.focus();
+  }
+  Array.prototype.forEach.call(wrap.querySelectorAll('.board-draft-add-sub'), function(btn){
+    btn.addEventListener('click', function(){ addSubFrom(Number(btn.getAttribute('data-bi'))); });
+  });
+  Array.prototype.forEach.call(wrap.querySelectorAll('.board-draft-sub-input'), function(input){
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); addSubFrom(Number(input.getAttribute('data-bi'))); }
+    });
+  });
+}
+
+function openSetupModal(){
+  setupBoards = [ newDraftBoard() ];
+  $('setup-dept').value = '';
+  renderSetupBoards();
+  $('setup-modal').hidden = false;
+  $('setup-dept').focus();
+}
+$('btn-setup').addEventListener('click', openSetupModal);
+$('setup-close').addEventListener('click', function(){ $('setup-modal').hidden = true; });
+$('setup-modal').addEventListener('click', function(e){ if (e.target.id === 'setup-modal') $('setup-modal').hidden = true; });
+$('setup-add-board').addEventListener('click', function(){ setupBoards.push(newDraftBoard()); renderSetupBoards(); });
+
+$('setup-create').addEventListener('click', function(){
+  // Sincroniza los inputs de nombre que no hayan disparado 'change' todavía
+  // (p. ej. si el usuario hace click en Crear sin salir del campo).
+  Array.prototype.forEach.call(document.querySelectorAll('.board-draft-name'), function(input){
+    setupBoards[Number(input.getAttribute('data-bi'))].name = input.value.trim();
+  });
+  var dept = $('setup-dept').value.trim();
+  if (!dept){ showToast('Escribe primero tu departamento.', true); $('setup-dept').focus(); return; }
+  var drafts = setupBoards.filter(function(b){ return b.name; }).map(function(b){ return { name: b.name, subs: b.subs }; });
+  if (drafts.length === 0){ showToast('Añade al menos un subapartado con nombre.', true); return; }
+
+  $('setup-create').disabled = true;
+  apiSend('POST', '/boards', { department: dept, boards: drafts })
+    .then(function(result){ return loadData().then(function(){ return result; }); })
+    .then(function(result){
+      state.currentDept = dept;
+      state.boardSlug = result.createdSlugs[0];
+      $('setup-modal').hidden = true;
+      showToast(drafts.length + ' subapartado(s) creados para "' + dept + '".');
+      render();
+    })
+    .catch(function(err){ showToast('Error al crear: ' + err.message, true); })
+    .then(function(){ $('setup-create').disabled = false; });
+});
+
+/* ============ DIRECTORIO DE MIEMBROS ============ */
+function renderMembers(){
+  var byDept = {};
+  var order = [];
+  MEMBERS.forEach(function(m){
+    var key = m.department || 'Sin departamento';
+    if (!byDept[key]){ byDept[key] = []; order.push(key); }
+    byDept[key].push(m);
+  });
+  var html = order.map(function(dept){
+    var rows = byDept[dept].map(memberRowHtml).join('');
+    return '<div class="dept-group"><div class="dept-group-title">' + escapeHtml(dept) + ' · ' + byDept[dept].length + '</div>' + rows + '</div>';
+  }).join('');
+  $('members-list').innerHTML = html || '<div class="empty-state">Sin miembros todavía.</div>';
+  wireMemberRows();
+}
+function memberRowHtml(m){
+  return '' +
+    '<div class="member-row" data-id="' + m.id + '">' +
+      '<input type="text" data-f="name" value="' + escapeHtml(m.name) + '" placeholder="Nombre">' +
+      '<input type="email" data-f="email" value="' + escapeHtml(m.email) + '" placeholder="correo@estudiantat.upc.edu">' +
+      '<input type="text" data-f="department" value="' + escapeHtml(m.department) + '" placeholder="Departamento">' +
+      '<button type="button" class="member-del" aria-label="Eliminar">✕</button>' +
+    '</div>';
+}
+function wireMemberRows(){
+  Array.prototype.forEach.call(document.querySelectorAll('.member-row'), function(row){
+    var id = row.getAttribute('data-id');
+    var member = MEMBERS.find(function(m){ return m.id === id; });
+    if (!member) return;
+    // Importante: NO se vuelve a pintar toda la lista de miembros al guardar
+    // un campo (solo se actualiza MEMBERS en memoria). Si reconstruyéramos el
+    // DOM aquí, editar dos campos seguidos de la misma fila (nombre y luego
+    // email, por ejemplo) podía perder el segundo cambio: el campo en el que
+    // estabas escribiendo se destruía a mitad de edición al recibir la
+    // respuesta del primer guardado.
+    Array.prototype.forEach.call(row.querySelectorAll('input'), function(input){
+      input.addEventListener('change', function(){
+        var fields = {
+          name: row.querySelector('[data-f="name"]').value.trim(),
+          email: row.querySelector('[data-f="email"]').value.trim(),
+          department: row.querySelector('[data-f="department"]').value.trim()
+        };
+        apiSend('PUT', '/members/' + id, fields)
+          .then(function(updated){
+            var idx = MEMBERS.findIndex(function(m){ return m.id === id; });
+            if (idx !== -1) MEMBERS[idx] = updated;
+          })
+          .catch(function(err){ showToast('Error al guardar el miembro: ' + err.message, true); });
+      });
+    });
+    row.querySelector('.member-del').addEventListener('click', function(){
+      apiSend('DELETE', '/members/' + id)
+        .then(function(){
+          var idx = MEMBERS.findIndex(function(m){ return m.id === id; });
+          if (idx !== -1) MEMBERS.splice(idx, 1);
+          renderMembers();
+          showToast('Miembro eliminado.');
+        })
+        .catch(function(err){ showToast('Error al eliminar el miembro: ' + err.message, true); });
+    });
+  });
+}
+$('btn-members').addEventListener('click', function(){ renderMembers(); $('members-modal').hidden = false; });
+$('members-close').addEventListener('click', function(){ $('members-modal').hidden = true; });
+$('members-modal').addEventListener('click', function(e){ if (e.target.id === 'members-modal') $('members-modal').hidden = true; });
+$('members-add').addEventListener('click', function(){
+  var lastDept = MEMBERS.length ? MEMBERS[MEMBERS.length-1].department : (state.currentDept || '');
+  apiSend('POST', '/members', { name:'', email:'', department: lastDept })
+    .then(function(created){
+      MEMBERS.push(created);
+      renderMembers();
+      var inputs = document.querySelectorAll('.member-row:last-child input[data-f="name"]');
+      if (inputs.length) inputs[inputs.length-1].focus();
+    })
+    .catch(function(err){ showToast('Error al añadir miembro: ' + err.message, true); });
+});
+
+/* ============ VIEW SWITCH ============ */
+$('view-table').addEventListener('click', function(){ state.view = 'table'; render(); });
+$('view-timeline').addEventListener('click', function(){ state.view = 'timeline'; render(); });
+$('show-aged').addEventListener('change', function(){ state.showAged = $('show-aged').checked; render(); });
+
+/* ============ BOOT ============ */
+function render(){
+  renderAccountBar();
+  renderTabs();
+  var mine = boardsForCurrentDept();
+  var board = mine.find(function(b){ return b.slug === state.boardSlug; }) || mine[0] || null;
+  state.boardSlug = board ? board.slug : null;
+  currentBoard = board;
+  $('view-table').classList.toggle('active', state.view === 'table');
+  $('view-timeline').classList.toggle('active', state.view === 'timeline');
+  $('show-aged-wrap').hidden = state.view !== 'table';
+  if (!board){
+    var msg = state.currentDept
+      ? 'Todavía no hay ningún Gantt para "' + escapeHtml(state.currentDept) + '". Usa el botón "+" (Configurar desde cero) para crear el primero.'
+      : 'Todavía no hay ningún departamento configurado. Usa el botón "+" (Configurar desde cero) para crear el primer Gantt.';
+    $('board-content').innerHTML = '<div class="empty-state">' + msg + '</div>';
+    return;
+  }
+  if (state.view === 'table') renderTable(board);
+  else renderTimeline(board);
+}
+
+function boot(){
+  loadData().then(function(){
+    if (!state.currentDept){
+      var depts = departmentsList();
+      state.currentDept = depts.length ? depts[0] : null;
+    }
+    var mine = boardsForCurrentDept();
+    if (!state.boardSlug || !mine.some(function(b){ return b.slug === state.boardSlug; })){
+      state.boardSlug = mine.length ? mine[0].slug : null;
+    }
+    render();
+  }).catch(function(err){
+    $('board-content').innerHTML =
+      '<div class="empty-state">No se ha podido conectar con la base de datos.<br>' +
+      escapeHtml(err.message) +
+      '<br><br>Revisa que la variable de entorno de conexión esté configurada en Vercel y que hayas ejecutado el esquema y la siembra de datos.</div>';
+  });
+}
+
+boot();
+
+})();
+</script>
+</body>
+</html>

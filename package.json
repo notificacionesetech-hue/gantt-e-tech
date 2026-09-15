@@ -1,0 +1,14 @@
+{
+  "name": "gantt-etech",
+  "version": "2.0.0",
+  "description": "Gantt e-Tech Racing — Fase 2 (Postgres + Vercel, proyecto propio, separado de Track-e)",
+  "private": true,
+  "scripts": {
+    "seed": "node scripts/seed.js",
+    "seed:force": "node scripts/seed.js --force",
+    "dev": "node scripts/dev-server.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}
