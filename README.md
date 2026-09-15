@@ -60,3 +60,5 @@ API se pueden ver en Vercel → tu proyecto → pestaña "Logs".
 
 Cuando haya que cambiar algo, se sube el archivo cambiado al mismo repo de GitHub (o se
 reemplaza por la web de GitHub) y Vercel vuelve a desplegar solo.
+
+
