@@ -58,3 +58,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_grupo ON tasks(grupo_id);
+
+-- Migración 26/09 — e-Tech Sync: preferencias del Dashboard por persona
+-- (qué widgets tiene activados cada miembro). Se guarda como JSON en vez de
+-- una tabla aparte porque es un objeto pequeño, propio de cada miembro, sin
+-- necesidad de consultarlo por separado. Este ALTER es idempotente: se puede
+-- volver a ejecutar el archivo entero sin problema si ya se había corrido.
+ALTER TABLE members ADD COLUMN IF NOT EXISTS dashboard_prefs JSONB;
