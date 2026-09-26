@@ -103,6 +103,17 @@ module.exports = async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
+    // PUT /api/members/:id/dashboard-prefs — qué widgets del Dashboard tiene
+    // activados esta persona (guardado por persona, no por departamento).
+    if (slug[0] === "members" && slug.length === 3 && slug[2] === "dashboard-prefs" && method === "PUT") {
+      const id = Number(slug[1]);
+      if (!Number.isInteger(id)) return json(res, 400, { error: "Miembro inválido." });
+      const body = await readBody(req);
+      const prefs = await repo.updateDashboardPrefs(id, body);
+      if (prefs === null) return json(res, 404, { error: "Miembro no encontrado." });
+      return json(res, 200, { dashboardPrefs: prefs });
+    }
+
     return json(res, 404, { error: "Ruta de API no encontrada: " + method + " /api/" + slug.join("/") });
   } catch (err) {
     console.error(err);
